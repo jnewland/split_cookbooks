@@ -17,10 +17,11 @@ cookbook_list = FileList['cookbooks/*'].map do |cookbook_path|
     file "tmp/#{cookbook}" do
       git "clone --no-hardlinks cookbooks tmp/#{cookbook}"
       Dir.chdir("#{Rake.original_dir}/tmp/#{cookbook}")
-      git "filter-branch --subdirectory-filter #{cookbook} HEAD"
+      git "filter-branch --subdirectory-filter #{cookbook} HEAD -- --all"
       git "reset --hard"
       git "gc --aggressive"
       git "prune"
+      git "remote rm origin"
       Dir.chdir(Rake.original_dir)
     end
 
