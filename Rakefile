@@ -3,10 +3,16 @@ task :submodule do
 end
 
 require 'rake/clean'
+require 'json'
+require 'open-uri'
 CLEAN.include('tmp/*')
 
 def git(command)
   system %{git #{command}}
+end
+
+def git_output(command)
+  `git #{command}`.chomp
 end
 
 cookbook_list = FileList['cookbooks/*'].map do |cookbook_path|
@@ -21,6 +27,18 @@ cookbook_list = FileList['cookbooks/*'].map do |cookbook_path|
       git "reset --hard"
       git "gc --aggressive"
       git "prune"
+
+      # tag versions
+      revisions = git_output "rev-list --topo-order --branches"
+      version = nil
+      revisions.split(/\n/).each do |rev|
+        metadata = JSON.parse(git_output("show #{rev}:metadata.json")) rescue {}
+        if metadata['version'] && metadata['version'] != version
+          version = metadata['version']
+          git "tag -a #{version}  -m 'Chef cookbook #{cookbook} version: #{version}' #{rev}"
+        end
+      end
+
       git "remote rm origin"
       Dir.chdir(Rake.original_dir)
     end
