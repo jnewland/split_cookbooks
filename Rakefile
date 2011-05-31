@@ -1,6 +1,8 @@
+require 'rubygems'
+require 'bundler'
+Bundler.setup
+
 require 'rake/clean'
-require 'json'
-require 'open-uri'
 CLEAN.include('tmp/*')
 
 # Dynamically build tasks for all directories in cookbooks/*
