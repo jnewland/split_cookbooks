@@ -1,5 +1,9 @@
 task :submodule do
   git "submodule update --init"
+  Dir.chdir("#{Rake.original_dir}/cookbooks")
+  git "pull origin master"
+  Dir.chdir(Rake.original_dir)
+  git "commit cookbooks -m '#{`whoami`.chomp} updated cookbooks at #{`date`.chomp}'"
 end
 
 require 'rake/clean'
@@ -52,6 +56,6 @@ cookbook_list = FileList['cookbooks/*'].map do |cookbook_path|
   end
 end.reject { |c| c.nil? }
 
-task :default do
+task :default => :submodule do
   cookbook_list.each { |cookbook| Rake::Task["tmp/#{cookbook}"].invoke }
 end
