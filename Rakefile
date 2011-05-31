@@ -36,7 +36,7 @@ def cookbook_list
 
         # push!
         git "remote rm origin"
-        git "remote add cookbooks git@github.com:cookbooks/#{cookbook}.git"
+        git "remote add cookbooks git@github.com:#{config['org']}/#{cookbook}.git"
         git "push --force --tags cookbooks master"
         Dir.chdir(Rake.original_dir)
 
@@ -60,24 +60,33 @@ def config
   @config ||= YAML.load_file(File.join(Rake.original_dir, 'config.yml'))
 end
 
-def create_repo(name)
+def post(uri, payload)
   sleep 1 # github api throttlin'
-  post = {
-    :login => config['login'],
-    :token => config['token'],
-    :public => 1,
-    :name => "cookbooks/#{name}",
-    :description => "A Chef cookbook for #{name}",
-    :homepage => "https://github.com/opscode/cookbooks/blob/master/LICENSE"
-  }
-  RestClient.post "https://github.com/api/v2/json/repos/create", post.to_json, :content_type => :json, :accept => :json
+  basic_auth = Base64.encode64("#{config['login']}/token:#{config['token']}").gsub("\n", '')
+  headers = { 'Authorization' => "Basic #{basic_auth}", :content_type => :json, :accept => :json}
+  JSON.parse(RestClient.post(uri, payload.to_json, headers))
 end
 
-def repo_exists?(name)
+def get(uri)
   sleep 1 # github api throttlin'
   basic_auth = Base64.encode64("#{config['login']}/token:#{config['token']}").gsub("\n", '')
   headers = { 'Authorization' => "Basic #{basic_auth}"}
-  repositories = JSON.parse(RestClient.get("https://github.com/api/v2/json/organizations/repositories", headers))
+  JSON.parse(RestClient.get(uri, headers))
+end
+
+def create_repo(name)
+  repo_info = {
+    :public      => 1,
+    :name        => "#{config['org']}/#{name}",
+    :description => "A Chef cookbook for #{name}",
+    :homepage    => "https://github.com/opscode/cookbooks/blob/master/LICENSE"
+  }
+  post "https://github.com/api/v2/json/repos/create", repo_info
+  post "https://github.com/api/v2/json/teams/#{config['team_id']}/repositories", {:name => "#{config['org']}/#{name}"}
+end
+
+def repo_exists?(name)
+  repositories = get("https://github.com/api/v2/json/organizations/repositories")
   repositories['repositories'].detect { |r| r["name"] == name }
 end
 
@@ -86,7 +95,7 @@ task :submodule do
   Dir.chdir("#{Rake.original_dir}/cookbooks")
   git "pull origin master"
   Dir.chdir(Rake.original_dir)
-  git "commit cookbooks -m '#{`whoami`.chomp} updated cookbooks at #{`date`.chomp}'"
+  git "commit cookbooks -m 'updated upstream cookbooks at #{`date`.chomp}'"
 end
 
 task :default => :submodule do
