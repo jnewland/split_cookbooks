@@ -96,6 +96,7 @@ task :submodule do
   git "pull origin master"
   Dir.chdir(Rake.original_dir)
   git "commit cookbooks -m 'updated upstream cookbooks at #{`date`.chomp}'"
+  git "push origin master"
 end
 
 task :default => :submodule do
