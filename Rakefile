@@ -43,7 +43,7 @@ def cookbook_list
         git "push --tags cookbooks master"
         Dir.chdir(Rake.original_dir)
 
-        #Rake::Task['clean'].invoke
+        Rake::Task['clean'].invoke
       end
 
       cookbook
