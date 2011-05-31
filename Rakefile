@@ -1,7 +1,8 @@
 require 'rubygems'
 require 'bundler'
-Bundler.setup
-
+Bundler.require
+require 'yaml'
+require 'base64'
 require 'rake/clean'
 CLEAN.include('tmp/*')
 
@@ -31,7 +32,7 @@ def cookbook_list
           end
         end
 
-        # TODO: verify github repo is present, create if not
+        create_repo(cookbook) unless repo_exists?(cookbook)
 
         # push!
         git "remote rm origin"
@@ -53,6 +54,31 @@ end
 
 def git_output(command)
   `git #{command}`.chomp
+end
+
+def config
+  @config ||= YAML.load_file(File.join(Rake.original_dir, 'config.yml'))
+end
+
+def create_repo(name)
+  sleep 1 # github api throttlin'
+  post = {
+    :login => config['login'],
+    :token => config['token'],
+    :public => 1,
+    :name => "cookbooks/#{name}",
+    :description => "A Chef cookbook for #{name}",
+    :homepage => "https://github.com/opscode/cookbooks/blob/master/LICENSE"
+  }
+  RestClient.post "https://github.com/api/v2/json/repos/create", post.to_json, :content_type => :json, :accept => :json
+end
+
+def repo_exists?(name)
+  sleep 1 # github api throttlin'
+  basic_auth = Base64.encode64("#{config['login']}/token:#{config['token']}").gsub("\n", '')
+  headers = { 'Authorization' => "Basic #{basic_auth}"}
+  repositories = JSON.parse(RestClient.get("https://github.com/api/v2/json/organizations/repositories", headers))
+  repositories['repositories'].detect { |r| r["name"] == name }
 end
 
 task :submodule do
