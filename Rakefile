@@ -39,7 +39,12 @@ cookbook_list = FileList['cookbooks/*'].map do |cookbook_path|
         end
       end
 
+      # TODO: verify github repo is present, create if not
+
+      # push!
       git "remote rm origin"
+      git "remote add cookbooks git@github.com:cookbooks/#{cookbooks}.git"
+      git "push --force --tags cookbooks master"
       Dir.chdir(Rake.original_dir)
     end
 
