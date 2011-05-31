@@ -25,7 +25,13 @@ def cookbook_list
         revisions = git_output "rev-list --topo-order --branches"
         version = nil
         revisions.split(/\n/).each do |rev|
-          metadata = JSON.parse(git_output("show #{rev}:metadata.json")) rescue {}
+          begin
+            metadata = JSON.parse(git_output("show #{rev}:./metadata.json")) 
+          rescue
+            metadata_string = `knife cookbook metadata #{cookbook}` 
+            metadata_insert_cmd = "git filter-branch --force --index-filter 'git update-index --add --cacheinfo 100644 #{@cc_gemspec_hash[0].chomp} cc.gemspec' --tag-name-filter cat -- --all"
+
+          end
           if metadata['version'] && metadata['version'] != version
             version = metadata['version']
             git "tag -a #{version}  -m 'Chef cookbook #{cookbook} version: #{version}' #{rev}"
