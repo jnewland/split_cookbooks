@@ -12,7 +12,6 @@ def cookbook_list
     if File.directory?(cookbook_path)
       cookbook = cookbook_path.split("/").last
 
-      desc "cook #{cookbook}"
       file "tmp/#{cookbook}" do
         git "clone --no-hardlinks cookbooks tmp/#{cookbook}"
         Dir.chdir("#{Rake.original_dir}/tmp/#{cookbook}")
@@ -32,7 +31,7 @@ def cookbook_list
         revisions = git_output "rev-list --topo-order --branches"
         version = nil
         revisions.split(/\n/).each do |rev|
-          metadata = JSON.parse(git_output("show #{rev}:metadata.json")) rescue {}
+          metadata = parse_metadata(cookbook, rev)
           if metadata['version'] && metadata['version'] != version
             version = metadata['version']
             git "tag -a #{version}  -m 'Chef cookbook #{cookbook} version: #{version}' #{rev}"
@@ -93,6 +92,19 @@ def repo_exists?(name)
   repositories['repositories'].detect { |r| r["name"] == name }
 end
 
+def parse_metadata(cookbook, rev)
+  begin
+    metadata = JSON.parse(git_output("show #{rev}:./metadata.json"))
+  rescue
+    puts "Generating metadata.json file.\nGit revision #{rev}"
+    `knife cookbook metadata from file metadata.rb`
+    metadata= JSON.parse(::File.read('metadata.json'))
+    File.rm('metadata.json')
+    puts "Cookbook #{cookbook} Version: #{metadata['version']}"
+  end
+  metadata
+end
+
 task :submodule do
   git "submodule update --init"
   Dir.chdir("#{Rake.original_dir}/cookbooks")
@@ -102,8 +114,31 @@ task :submodule do
   git "push origin master"
 end
 
-task :default => :submodule do
-  cookbook_list.each { |cookbook| Rake::Task["tmp/#{cookbook}"].invoke }
+desc "Update all cookbooks in Opscode's Chef Cookbooks repository."
+task :default => [:submodule, :create_tasks] do
+  begin
+    cookbook_list.each { |cookbook| Rake::Task["tmp/#{cookbook}"].invoke }
+  ensure
+    Rake::Task['clean'].invoke
+  end
+end
+
+task :create_tasks do
+  cookbook_list
+end
+
+desc "Update specific cookbook (default: all) from Opscode's Chef Cookbooks repository."
+task :update, [:cookbook] => [:submodule, :create_tasks] do |tsk, args|
+  begin
+    args.with_defaults(:cookbook => 'all')
+    if args[:cookbook] == 'all'
+      cookbook_list.each { |cookbook| Rake::Task["tmp/#{cookbook}"].invoke }
+    else
+      Rake::Task["tmp/#{args[:cookbook]}"].invoke
+    end
+  ensure
+    Rake::Task['clean'].invoke
+  end
 end
 
 cookbook_list
