@@ -12,7 +12,6 @@ def cookbook_list
     if File.directory?(cookbook_path)
       cookbook = cookbook_path.split("/").last
 
-      desc "cook #{cookbook}"
       file "tmp/#{cookbook}" do
         git "clone --no-hardlinks cookbooks tmp/#{cookbook}"
         Dir.chdir("#{Rake.original_dir}/tmp/#{cookbook}")
