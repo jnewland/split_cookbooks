@@ -4,7 +4,6 @@ Bundler.require
 require 'yaml'
 require 'base64'
 require 'rake/clean'
-CLEAN.include('tmp/*')
 
 # Dynamically build tasks for all directories in cookbooks/*
 def cookbook_list
@@ -43,6 +42,7 @@ def cookbook_list
         git "push --tags cookbooks master"
         Dir.chdir(Rake.original_dir)
 
+        CLEAN.include('tmp/*')
         Rake::Task['clean'].invoke
       end
 
@@ -139,6 +139,7 @@ task :update, [:cookbook] => [:submodule, :create_tasks] do |tsk, args|
       Rake::Task["tmp/#{args[:cookbook]}"].invoke
     end
   ensure
+    CLEAN.include('tmp/*')
     Rake::Task['clean'].invoke
   end
 end
