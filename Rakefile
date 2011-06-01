@@ -110,8 +110,31 @@ task :submodule do
   git "commit cookbooks -m 'updated upstream cookbooks at #{`date`.chomp}'"
 end
 
-task :default => :submodule do
-  cookbook_list.each { |cookbook| Rake::Task["tmp/#{cookbook}"].invoke }
+desc "Update all cookbooks in Opscode's Chef Cookbooks repository."
+task :default => [:submodule, :create_tasks] do
+  begin
+    cookbook_list.each { |cookbook| Rake::Task["tmp/#{cookbook}"].invoke }
+  ensure
+    Rake::Task['clean'].invoke
+  end
+end
+
+task :create_tasks do
+  cookbook_list
+end
+
+desc "Update specific cookbook (default: all) from Opscode's Chef Cookbooks repository."
+task :update, [:cookbook] => [:submodule, :create_tasks] do |tsk, args|
+  begin
+    args.with_defaults(:cookbook => 'all')
+    if args[:cookbook] == 'all'
+      cookbook_list.each { |cookbook| Rake::Task["tmp/#{cookbook}"].invoke }
+    else
+      Rake::Task["tmp/#{args[:cookbook]}"].invoke
+    end
+  ensure
+    Rake::Task['clean'].invoke
+  end
 end
 
 cookbook_list
