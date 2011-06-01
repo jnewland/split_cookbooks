@@ -24,13 +24,7 @@ def cookbook_list
         revisions = git_output "rev-list --topo-order --branches"
         version = nil
         revisions.split(/\n/).each do |rev|
-          begin
-            metadata = JSON.parse(git_output("show #{rev}:./metadata.json")) 
-          rescue
-            metadata_string = `knife cookbook metadata #{cookbook}` 
-            metadata_insert_cmd = "git filter-branch --force --index-filter 'git update-index --add --cacheinfo 100644 #{@cc_gemspec_hash[0].chomp} cc.gemspec' --tag-name-filter cat -- --all"
-
-          end
+          metadata = parse_metadata(cookbook, rev)
           if metadata['version'] && metadata['version'] != version
             version = metadata['version']
             git "tag -a #{version}  -m 'Chef cookbook #{cookbook} version: #{version}' #{rev}"
@@ -93,6 +87,19 @@ end
 def repo_exists?(name)
   repositories = get("https://github.com/api/v2/json/organizations/repositories")
   repositories['repositories'].detect { |r| r["name"] == name }
+end
+
+def parse_metadata(cookbook, rev)
+  begin
+    metadata = JSON.parse(git_output("show #{rev}:./metadata.json"))
+  rescue
+    puts "Generating metadata.json file.\nGit revision #{rev}"
+    `knife cookbook metadata from file metadata.rb`
+    metadata= JSON.parse(::File.read('metadata.json'))
+    File.rm('metadata.json')
+    puts "Cookbook #{cookbook} Version: #{metadata['version']}"
+  end
+  metadata
 end
 
 task :submodule do
