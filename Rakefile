@@ -20,6 +20,13 @@ def cookbook_list
         git "gc --aggressive"
         git "prune"
 
+        create_repo(cookbook) unless repo_exists?(cookbook)
+
+        # check for existing tags
+        git "remote rm origin"
+        git "remote add cookbooks git@github.com:#{config['org']}/#{cookbook}.git"
+        git "fetch cookbooks"
+
         # tag versions
         revisions = git_output "rev-list --topo-order --branches"
         version = nil
@@ -31,12 +38,8 @@ def cookbook_list
           end
         end
 
-        create_repo(cookbook) unless repo_exists?(cookbook)
-
         # push!
-        git "remote rm origin"
-        git "remote add cookbooks git@github.com:#{config['org']}/#{cookbook}.git"
-        git "push --force --tags cookbooks master"
+        git "push --tags cookbooks master"
         Dir.chdir(Rake.original_dir)
 
         Rake::Task['clean'].invoke
@@ -108,6 +111,7 @@ task :submodule do
   git "pull origin master"
   Dir.chdir(Rake.original_dir)
   git "commit cookbooks -m 'updated upstream cookbooks at #{`date`.chomp}'"
+  git "push origin master"
 end
 
 desc "Update all cookbooks in Opscode's Chef Cookbooks repository."
