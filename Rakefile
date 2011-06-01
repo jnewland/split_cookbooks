@@ -34,6 +34,7 @@ def cookbook_list
           metadata = parse_metadata(cookbook, rev)
           if metadata['version'] && metadata['version'] != version
             version = metadata['version']
+            puts "tagging #{rev} as #{version}"
             git "tag -a #{version}  -m 'Chef cookbook #{cookbook} version: #{version}' #{rev}"
           end
         end
@@ -94,13 +95,14 @@ end
 
 def parse_metadata(cookbook, rev)
   begin
-    metadata = JSON.parse(git_output("show #{rev}:./metadata.json"))
+    metadata = JSON.parse(git_output("show #{rev}:metadata.json"))
   rescue
-    puts "Generating metadata.json file.\nGit revision #{rev}"
+    git "reset -q #{rev} metadata.rb"
     `knife cookbook metadata from file metadata.rb`
     metadata= JSON.parse(::File.read('metadata.json'))
-    File.rm('metadata.json')
-    puts "Cookbook #{cookbook} Version: #{metadata['version']}"
+    puts "Cookbook #{cookbook} Git revision #{rev} is version #{metadata['version']}"
+    rm('metadata.json')
+    git "reset --hard -q"
   end
   metadata
 end
